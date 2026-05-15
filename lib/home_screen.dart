@@ -133,8 +133,9 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  /// Desktop only: single Esc toggles menu; double Esc within 2 s exits app.
-  void _handleDesktopEsc() {
+  /// Desktop: single back/Esc toggles menu; double within 2 s exits.
+  /// Reused for both the keyboard Esc event and the Android back button.
+  void _handleBackOrEsc() {
     final now = DateTime.now();
     if (_lastEscPressTime != null &&
         now.difference(_lastEscPressTime!) < const Duration(seconds: 2)) {
@@ -147,7 +148,26 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _menuVisible = !_menuVisible);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Press Esc again to exit'),
+        content: Text('Press back again to exit'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// Mobile: double back within 2 s exits, single back shows toast.
+  void _handleMobileBack() {
+    final now = DateTime.now();
+    if (_lastEscPressTime != null &&
+        now.difference(_lastEscPressTime!) < const Duration(seconds: 2)) {
+      _lastEscPressTime = null;
+      ScaffoldMessenger.of(context).clearSnackBars();
+      SystemNavigator.pop();
+      return;
+    }
+    _lastEscPressTime = now;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Press back again to exit'),
         duration: Duration(seconds: 2),
       ),
     );
@@ -178,24 +198,28 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── Mobile ────────────────────────────────────────────────────────────────
 
   Widget _mobileScaffold(CameraGrid grid) {
-    return Scaffold(
-      body: grid,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => MobileMenuPage(
-              layoutCount: _layoutCount,
-              hosts: _hosts,
-              onHostAdded: _onHostAdded,
-              onHostEdited: _onHostEdited,
-              onHostDeleted: _onHostDeleted,
-              onLayoutChanged: _onLayoutChanged,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (_, __) => _handleMobileBack(),
+      child: Scaffold(
+        body: grid,
+        floatingActionButton: FloatingActionButton(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MobileMenuPage(
+                layoutCount: _layoutCount,
+                hosts: _hosts,
+                onHostAdded: _onHostAdded,
+                onHostEdited: _onHostEdited,
+                onHostDeleted: _onHostDeleted,
+                onLayoutChanged: _onLayoutChanged,
+              ),
             ),
           ),
+          backgroundColor: const Color(0xFF1C1C1C),
+          child: const Icon(Icons.settings, color: Colors.white),
         ),
-        backgroundColor: const Color(0xFF1C1C1C),
-        child: const Icon(Icons.settings, color: Colors.white),
       ),
     );
   }
@@ -212,23 +236,27 @@ class _HomeScreenState extends State<HomeScreen> {
       onLayoutChanged: _onLayoutChanged,
     );
 
-    return Scaffold(
-      body: Focus(
-        autofocus: true,
-        onKeyEvent: (_, event) {
-          if (event is! KeyDownEvent) return KeyEventResult.ignored;
-          if (event.logicalKey != LogicalKeyboardKey.escape) {
-            return KeyEventResult.ignored;
-          }
-          _handleDesktopEsc();
-          return KeyEventResult.handled;
-        },
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(child: grid),
-            if (_menuVisible) menu,
-          ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (_, __) => _handleBackOrEsc(),
+      child: Scaffold(
+        body: Focus(
+          autofocus: false,
+          onKeyEvent: (_, event) {
+            if (event is! KeyDownEvent) return KeyEventResult.ignored;
+            if (event.logicalKey != LogicalKeyboardKey.escape) {
+              return KeyEventResult.ignored;
+            }
+            _handleBackOrEsc();
+            return KeyEventResult.handled;
+          },
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: grid),
+              if (_menuVisible) menu,
+            ],
+          ),
         ),
       ),
     );

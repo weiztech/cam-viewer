@@ -177,10 +177,12 @@ class _AddHostPageState extends State<AddHostPage> {
       children: List.generate(18, (i) {
         final ch = i + 1;
         final on = _selectedChannels.contains(ch);
-        return GestureDetector(
+        return InkWell(
           onTap: () => setState(
             () => on ? _selectedChannels.remove(ch) : _selectedChannels.add(ch),
           ),
+          borderRadius: BorderRadius.circular(4),
+          focusColor: Colors.white.withOpacity(0.3),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 120),
             decoration: BoxDecoration(

@@ -66,8 +66,10 @@ class AppMenu extends StatelessWidget {
       runSpacing: 6,
       children: kLayoutOptions.map((count) {
         final selected = count == layoutCount;
-        return GestureDetector(
+        return InkWell(
           onTap: () => onLayoutChanged(count),
+          borderRadius: BorderRadius.circular(6),
+          focusColor: Colors.white.withOpacity(0.3),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(

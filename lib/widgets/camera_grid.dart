@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import '../models/camera_slot.dart';
+import 'keyboard_focus_ring_mixin.dart';
 
 int _columnsFor(int count) {
   switch (count) {
@@ -114,13 +116,16 @@ class _CameraCell extends StatefulWidget {
   State<_CameraCell> createState() => _CameraCellState();
 }
 
-class _CameraCellState extends State<_CameraCell> {
+class _CameraCellState extends State<_CameraCell> with KeyboardFocusRingMixin {
   Player? _player;
   VideoController? _controller;
+  late final FocusNode _focusNode;
 
   @override
   void initState() {
     super.initState();
+    _focusNode = FocusNode();
+    _focusNode.addListener(() => setState(() {}));
     _startStream(widget.slot?.fullResUrl);
   }
 
@@ -151,63 +156,85 @@ class _CameraCellState extends State<_CameraCell> {
 
   @override
   void dispose() {
+    _focusNode.dispose();
     _disposePlayer();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
-          border: Border.all(color: Colors.grey.shade800, width: 1),
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (_controller != null)
-              Video(
-                controller: _controller!,
-                fill: Colors.black,
-                controls: null,
-              )
-            else
-              const Center(
-                child: Icon(
-                  Icons.videocam_outlined,
-                  color: Colors.grey,
-                  size: 32,
-                ),
-              ),
-            // Semi-transparent overlay for labels
-            Positioned(
-              top: 4,
-              left: 6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                color: Colors.black45,
-                child: Text(
-                  widget.slot?.label ?? 'EMPTY',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
+    final showRing = _focusNode.hasFocus && isKeyboardNavigation;
+    return Focus(
+      focusNode: _focusNode,
+      autofocus: widget.position == 1,
+      onKeyEvent: (_, event) {
+        if (event is KeyDownEvent &&
+            (event.logicalKey == LogicalKeyboardKey.select ||
+                event.logicalKey == LogicalKeyboardKey.enter)) {
+          widget.onTap?.call();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A),
+            border: Border.all(
+              color: showRing ? Colors.white : Colors.grey.shade800,
+              width: showRing ? 3 : 1,
+            ),
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (_controller != null)
+                Video(
+                  controller: _controller!,
+                  fill: Colors.black,
+                  controls: null,
+                )
+              else
+                const Center(
+                  child: Icon(
+                    Icons.videocam_outlined,
+                    color: Colors.grey,
+                    size: 32,
                   ),
-                  overflow: TextOverflow.ellipsis,
+                ),
+              // Semi-transparent overlay for labels
+              Positioned(
+                top: 4,
+                left: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 1,
+                  ),
+                  color: Colors.black45,
+                  child: Text(
+                    widget.slot?.label ?? 'EMPTY',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
-            ),
-            Positioned(
-              bottom: 4,
-              right: 6,
-              child: Text(
-                '#${widget.position}',
-                style: const TextStyle(color: Colors.white38, fontSize: 10),
+              Positioned(
+                bottom: 4,
+                right: 6,
+                child: Text(
+                  '#${widget.position}',
+                  style: const TextStyle(color: Colors.white38, fontSize: 10),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
