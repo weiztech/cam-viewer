@@ -1,8 +1,18 @@
 # Cam Viewer
 
-A desktop and mobile app for monitoring multiple RTSP IP cameras simultaneously — designed for DVRs and NVRs with up to 18 channels.
+A desktop, mobile, and Android TV app for monitoring multiple RTSP IP cameras simultaneously — designed for DVRs and NVRs with up to 18 channels.
 
 <img src="image.png" width="500" alt="Cam Viewer screenshot" />
+
+---
+
+## Tested Platforms
+
+| Platform | Status |
+|---|---|
+| macOS | ✅ Tested |
+| Android (phone/tablet) | ✅ Tested |
+| Android TV (Android 9 & 14) | ✅ Tested |
 
 ---
 
@@ -20,13 +30,19 @@ A desktop and mobile app for monitoring multiple RTSP IP cameras simultaneously 
 - Edit or delete hosts at any time.
 
 ### Fullscreen Mode
-- Tap any camera cell to go **fullscreen**.
+- Tap or select any camera cell to go **fullscreen**.
 - Grid streams are paused while fullscreen is active to avoid overloading the DVR.
-- Press **Esc** or the back button to return — the grid resumes automatically.
+- Press **Esc**, the back button, or the remote **Back** key to return — the grid resumes automatically.
 
 ### Always Full Resolution
 - All streams use the full-resolution feed from the DVR, both in the grid and fullscreen.
 
 ### Desktop & Mobile
-- **Desktop:** collapsible side menu with layout switcher and host controls. Press **Esc** once to hide/show the menu; press **Esc twice** within 2 seconds to exit.
+- **Desktop / Android TV:** collapsible side menu with layout switcher and host controls. Press **Esc** / remote **Back** once to hide/show the menu; press twice within 2 seconds to exit.
 - **Mobile:** floating button opens a settings page with the same controls.
+
+### Android TV
+- Appears in the Android TV home screen launcher with a banner tile.
+- Fully navigable with a D-pad remote — use the **directional keys** to move between camera cells and press **Select / OK** to open fullscreen.
+- No touchscreen required.
+- Supports Android TV **9 (API 28)** and **14 (API 34)** and above.
