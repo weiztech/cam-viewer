@@ -43,10 +43,7 @@ class Host {
 
   // ── URL construction ─────────────────────────────────────────────────────
 
-  /// Build a full RTSP URL for [channel].
-  ///
-  /// * [highRes] = false → subtype=1 (low-quality, for grid thumbnails)
-  /// * [highRes] = true  → subtype=0 (full quality, for fullscreen)
+  /// Build a full-resolution RTSP URL for [channel] (subtype=0).
   ///
   /// Rules:
   /// 1. Strip any leading "rtsp://" the user may have typed.
@@ -54,9 +51,9 @@ class Host {
   ///    full path and use it as-is.
   /// 3. If no path is present, append the default ":554/cam/realmonitor".
   /// 4. Prepend credentials if username is non-empty.
-  /// 5. Append `?channel=<channel>&subtype=<subtype>`.
-  String buildStreamUrl(int channel, {bool highRes = false}) {
-    final subtype = highRes ? 2 : 0;
+  /// 5. Append `?channel=<channel>&subtype=0`.
+  String buildStreamUrl(int channel) {
+    const subtype = 0;
 
     var input = rawInput.trim();
     // Strip explicit protocol prefix if user typed it

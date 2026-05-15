@@ -38,7 +38,7 @@ class RtspService {
 
       final results = await Future.wait(
         batch.map((ch) async {
-          final url = host.buildStreamUrl(ch, highRes: false);
+          final url = host.buildStreamUrl(ch);
           final isActive = await _probeChannel(url, channel: ch);
           onProgress?.call(++checked, _maxChannels);
           return isActive ? ch : null;

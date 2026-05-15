@@ -85,10 +85,19 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onCellTap(int index) {
     final slot = _displaySlots[index];
     if (slot == null) return;
+
+    // Stop all grid streams before entering fullscreen so the DVR isn't
+    // holding connections open in the background.
+    final savedSlots = List<CameraSlot?>.from(_displaySlots);
+    setState(() => _displaySlots = List.filled(_layoutCount, null));
+
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => _CameraFullscreenPage(slot: slot)),
-    );
+    ).then((_) {
+      // Restore streams when returning from fullscreen.
+      if (mounted) setState(() => _displaySlots = savedSlots);
+    });
   }
 
   /// Desktop only: single Esc toggles menu; double Esc within 2 s exits app.
@@ -231,7 +240,11 @@ class _CameraFullscreenPageState extends State<_CameraFullscreenPage> {
       },
       child: Scaffold(
         backgroundColor: Colors.black,
-        body: Video(controller: _controller, fill: Colors.black),
+        body: Video(
+          controller: _controller,
+          fill: Colors.black,
+          controls: null,
+        ),
       ),
     );
   }

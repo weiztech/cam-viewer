@@ -121,14 +121,14 @@ class _CameraCellState extends State<_CameraCell> {
   @override
   void initState() {
     super.initState();
-    _startStream(widget.slot?.streamUrl);
+    _startStream(widget.slot?.fullResUrl);
   }
 
   @override
   void didUpdateWidget(_CameraCell old) {
     super.didUpdateWidget(old);
-    final oldUrl = old.slot?.streamUrl;
-    final newUrl = widget.slot?.streamUrl;
+    final oldUrl = old.slot?.fullResUrl;
+    final newUrl = widget.slot?.fullResUrl;
     if (oldUrl != newUrl) {
       _disposePlayer();
       _startStream(newUrl);
