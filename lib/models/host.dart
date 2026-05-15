@@ -22,6 +22,26 @@ class Host {
   /// Channel numbers (1-18) that responded to RTSP DESCRIBE.
   final List<int> activeChannels;
 
+  // ── Serialisation ─────────────────────────────────────────────────────────
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'rawInput': rawInput,
+    'username': username,
+    'password': password,
+    'activeChannels': activeChannels,
+  };
+
+  factory Host.fromJson(Map<String, dynamic> json) => Host(
+    id: json['id'] as String,
+    rawInput: json['rawInput'] as String,
+    username: json['username'] as String? ?? '',
+    password: json['password'] as String? ?? '',
+    activeChannels: (json['activeChannels'] as List<dynamic>)
+        .map((e) => e as int)
+        .toList(),
+  );
+
   // ── Computed ──────────────────────────────────────────────────────────────
 
   /// Just the IP/hostname, lower-cased, no port, no path, no protocol.

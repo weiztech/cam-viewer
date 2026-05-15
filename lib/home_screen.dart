@@ -4,6 +4,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'models/host.dart';
 import 'models/camera_slot.dart';
+import 'services/host_storage.dart';
 import 'widgets/camera_grid.dart';
 import 'widgets/app_menu.dart';
 import 'mobile_menu_page.dart';
@@ -20,7 +21,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _layoutCount = 4;
   List<CameraSlot?> _displaySlots = [];
-  final List<Host> _hosts = [];
+  List<Host> _hosts = [];
+  bool _loaded = false;
 
   bool _menuVisible = true;
   DateTime? _lastEscPressTime;
@@ -49,8 +51,32 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _rebuildDisplaySlots();
+    _loadHosts();
   }
+
+  Future<void> _loadHosts() async {
+    try {
+      debugPrint('[HostStorage] loading...');
+      final hosts = await HostStorage.load();
+      debugPrint('[HostStorage] loaded ${hosts.length} host(s)');
+      if (!mounted) return;
+      setState(() {
+        _hosts = hosts;
+        _loaded = true;
+        _rebuildDisplaySlots();
+      });
+    } catch (e, st) {
+      debugPrint('[HostStorage] load error: $e\n$st');
+      if (!mounted) return;
+      // Always unblock the UI even if storage fails.
+      setState(() {
+        _loaded = true;
+        _rebuildDisplaySlots();
+      });
+    }
+  }
+
+  Future<void> _saveHosts() => HostStorage.save(_hosts);
 
   // ── Event handlers ────────────────────────────────────────────────────────
 
@@ -66,6 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _hosts.add(host);
       _rebuildDisplaySlots();
     });
+    _saveHosts();
   }
 
   void _onHostEdited(int index, Host updated) {
@@ -73,6 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _hosts[index] = updated;
       _rebuildDisplaySlots();
     });
+    _saveHosts();
   }
 
   void _onHostDeleted(int index) {
@@ -80,6 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _hosts.removeAt(index);
       _rebuildDisplaySlots();
     });
+    _saveHosts();
   }
 
   void _onCellTap(int index) {
@@ -93,7 +122,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => _CameraFullscreenPage(slot: slot)),
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => _CameraFullscreenPage(slot: slot),
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
     ).then((_) {
       // Restore streams when returning from fullscreen.
       if (mounted) setState(() => _displaySlots = savedSlots);
@@ -124,6 +157,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_loaded) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF141414),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final isMobile = MediaQuery.of(context).size.width < kMobileBreakpoint;
 
     final grid = CameraGrid(
