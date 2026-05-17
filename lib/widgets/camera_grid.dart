@@ -5,6 +5,23 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../models/camera_slot.dart';
 import 'keyboard_focus_ring_mixin.dart';
 
+/// Low-latency MPV properties shared by every player (grid + fullscreen).
+/// Does NOT mute audio — callers that want silence add `'audio': 'no'`.
+const kRtspLowLatencyProps = {
+  // ── Cache / read-ahead ──────────────────────────────────────────────────
+  'cache': 'no', // no ring-buffer, always at live edge
+  'demuxer-readahead-secs': '0', // don't pre-read ahead of current PTS
+  'demuxer-max-bytes': '524288', // 512 KB cap – enough for one frame
+  // ── FFmpeg demuxer ──────────────────────────────────────────────────────
+  'demuxer-lavf-o': 'fflags=+nobuffer', // skip FFmpeg's own input buffer
+  'demuxer-lavf-analyzeduration': '0.1', // probe stream for 0.1 s, not 5 s
+  // ── Decoder ─────────────────────────────────────────────────────────────
+  'vd-lavc-o': 'flags=+low_delay', // no B-frame reorder wait (H.264)
+  // ── Presentation ────────────────────────────────────────────────────────
+  'video-sync': 'desync', // render frame the moment it is decoded
+  'framedrop': 'vo', // drop at display if decoder ever lags
+};
+
 int _columnsFor(int count) {
   switch (count) {
     case 4:
@@ -138,24 +155,8 @@ class _CameraCellState extends State<_CameraCell> with KeyboardFocusRingMixin {
     }
   }
 
-  // Minimise end-to-end latency for RTSP live streams.
-  static const _kLowLatencyProps = {
-    // ── Cache / read-ahead ────────────────────────────────────────────────
-    'cache': 'no', // no ring-buffer, always at live edge
-    'demuxer-readahead-secs': '0', // don't pre-read ahead of current PTS
-    'demuxer-max-bytes': '524288', // 512 KB cap – enough for one frame
-    // ── FFmpeg demuxer ────────────────────────────────────────────────────
-    'demuxer-lavf-o': 'fflags=+nobuffer', // skip FFmpeg's own input buffer
-    // ── Decoder ──────────────────────────────────────────────────────────
-    'vd-lavc-o': 'flags=+low_delay', // no B-frame reorder wait (H.264)
-    // ── Demuxer probe ─────────────────────────────────────────────────────
-    'demuxer-lavf-analyzeduration': '0.01', // probe stream for 0.1 s, not 5 s
-    // ── Presentation ─────────────────────────────────────────────────────
-    // 'audio':
-    //    'no', // drop audio track; removes A/V sync stall on cameras that have audio
-    'video-sync': 'desync', // render frame the moment it is decoded
-    'framedrop': 'vo', // drop at display if decoder ever lags
-  };
+  // Grid cells mute audio to eliminate A/V sync stall; fullscreen keeps it.
+  static const _kLowLatencyProps = {...kRtspLowLatencyProps, 'audio': 'no'};
 
   Future<void> _startStream(String? url) async {
     if (url == null) return;

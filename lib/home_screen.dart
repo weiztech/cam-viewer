@@ -5,7 +5,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'models/host.dart';
 import 'models/camera_slot.dart';
 import 'services/host_storage.dart';
-import 'widgets/camera_grid.dart';
+import 'widgets/camera_grid.dart' show CameraGrid, kRtspLowLatencyProps;
 import 'widgets/app_menu.dart';
 import 'mobile_menu_page.dart';
 
@@ -285,7 +285,15 @@ class _CameraFullscreenPageState extends State<_CameraFullscreenPage> {
     super.initState();
     _player = Player();
     _controller = VideoController(_player);
-    _player.open(Media(widget.slot.fullResUrl));
+    _applyPropsAndOpen();
+  }
+
+  Future<void> _applyPropsAndOpen() async {
+    final native = _player.platform as NativePlayer;
+    for (final e in kRtspLowLatencyProps.entries) {
+      await native.setProperty(e.key, e.value);
+    }
+    if (mounted) _player.open(Media(widget.slot.fullResUrl));
   }
 
   @override
