@@ -44,24 +44,21 @@ class CameraGrid extends StatelessWidget {
     return isMobile ? _buildMobile() : _buildDesktop();
   }
 
-  // Mobile: always 2 columns, 16:9 cells, scrollable
+  // Mobile: 1 column, each camera fills the full screen width at 16:9, scrollable
   Widget _buildMobile() {
     return ColoredBox(
       color: const Color(0xFF0D0D0D),
-      child: GridView.builder(
-        padding: const EdgeInsets.all(4),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 4,
-          crossAxisSpacing: 4,
-          childAspectRatio: 16 / 9,
-        ),
+      child: ListView.builder(
+        padding: const EdgeInsets.only(bottom: 96),
         itemCount: slots.length,
         itemBuilder: (context, index) {
-          return _CameraCell(
-            slot: slots[index],
-            position: index + 1,
-            onTap: onCellTap != null ? () => onCellTap!(index) : null,
+          return AspectRatio(
+            aspectRatio: 16 / 9,
+            child: _CameraCell(
+              slot: slots[index],
+              position: index + 1,
+              onTap: onCellTap != null ? () => onCellTap!(index) : null,
+            ),
           );
         },
       ),
@@ -141,11 +138,34 @@ class _CameraCellState extends State<_CameraCell> with KeyboardFocusRingMixin {
     }
   }
 
-  void _startStream(String? url) {
+  // Minimise end-to-end latency for RTSP live streams.
+  static const _kLowLatencyProps = {
+    // ── Cache / read-ahead ────────────────────────────────────────────────
+    'cache': 'no', // no ring-buffer, always at live edge
+    'demuxer-readahead-secs': '0', // don't pre-read ahead of current PTS
+    'demuxer-max-bytes': '524288', // 512 KB cap – enough for one frame
+    // ── FFmpeg demuxer ────────────────────────────────────────────────────
+    'demuxer-lavf-o': 'fflags=+nobuffer', // skip FFmpeg's own input buffer
+    // ── Decoder ──────────────────────────────────────────────────────────
+    'vd-lavc-o': 'flags=+low_delay', // no B-frame reorder wait (H.264)
+    // ── Demuxer probe ─────────────────────────────────────────────────────
+    'demuxer-lavf-analyzeduration': '0.01', // probe stream for 0.1 s, not 5 s
+    // ── Presentation ─────────────────────────────────────────────────────
+    // 'audio':
+    //    'no', // drop audio track; removes A/V sync stall on cameras that have audio
+    'video-sync': 'desync', // render frame the moment it is decoded
+    'framedrop': 'vo', // drop at display if decoder ever lags
+  };
+
+  Future<void> _startStream(String? url) async {
     if (url == null) return;
     _player = Player();
     _controller = VideoController(_player!);
-    _player!.open(Media(url));
+    final native = _player!.platform as NativePlayer;
+    for (final e in _kLowLatencyProps.entries) {
+      await native.setProperty(e.key, e.value);
+    }
+    if (mounted) _player!.open(Media(url));
   }
 
   void _disposePlayer() {
@@ -163,10 +183,9 @@ class _CameraCellState extends State<_CameraCell> with KeyboardFocusRingMixin {
 
   @override
   Widget build(BuildContext context) {
-    final showRing = _focusNode.hasFocus && isKeyboardNavigation;
     return Focus(
       focusNode: _focusNode,
-      autofocus: widget.position == 1,
+      // autofocus: widget.position == 1,
       onKeyEvent: (_, event) {
         if (event is KeyDownEvent &&
             (event.logicalKey == LogicalKeyboardKey.select ||
@@ -182,10 +201,7 @@ class _CameraCellState extends State<_CameraCell> with KeyboardFocusRingMixin {
           duration: const Duration(milliseconds: 150),
           decoration: BoxDecoration(
             color: const Color(0xFF1A1A1A),
-            border: Border.all(
-              color: showRing ? Colors.white : Colors.grey.shade800,
-              width: showRing ? 3 : 1,
-            ),
+            border: Border.all(color: Colors.grey.shade800, width: 1),
           ),
           child: Stack(
             fit: StackFit.expand,
