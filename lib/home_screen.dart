@@ -283,7 +283,9 @@ class _CameraFullscreenPageState extends State<_CameraFullscreenPage> {
   @override
   void initState() {
     super.initState();
-    _player = Player();
+    _player = Player(
+      configuration: const PlayerConfiguration(bufferSize: 524288),
+    );
     _controller = VideoController(_player);
     _applyPropsAndOpen();
   }

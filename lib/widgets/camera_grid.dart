@@ -8,18 +8,25 @@ import 'keyboard_focus_ring_mixin.dart';
 /// Low-latency MPV properties shared by every player (grid + fullscreen).
 /// Does NOT mute audio — callers that want silence add `'audio': 'no'`.
 const kRtspLowLatencyProps = {
+  // ── Transport ────────────────────────────────────────────────────────────
+  // UDP: no TCP retransmit stalls, no head-of-line blocking.
+  // reorder_queue_size=0: drop the RTP jitter buffer entirely – a late UDP
+  // packet is useless for live view, so just discard it immediately.
+  //
+  // NOTE: setProperty replaces demuxer-lavf-o entirely.
+  'demuxer-lavf-o': 'rtsp_transport=udp,reorder_queue_size=0,fflags=+nobuffer',
+  'demuxer-lavf-analyzeduration': '0.5', // probe stream for 0.1 s, not 5 s
   // ── Cache / read-ahead ──────────────────────────────────────────────────
+  // demuxer-max-bytes is intentionally omitted here — it is set (along with
+  // demuxer-max-back-bytes) via PlayerConfiguration(bufferSize: 512 KB).
   'cache': 'no', // no ring-buffer, always at live edge
   'demuxer-readahead-secs': '0', // don't pre-read ahead of current PTS
-  'demuxer-max-bytes': '524288', // 512 KB cap – enough for one frame
-  // ── FFmpeg demuxer ──────────────────────────────────────────────────────
-  'demuxer-lavf-o': 'fflags=+nobuffer', // skip FFmpeg's own input buffer
-  'demuxer-lavf-analyzeduration': '0.1', // probe stream for 0.1 s, not 5 s
   // ── Decoder ─────────────────────────────────────────────────────────────
-  'vd-lavc-o': 'flags=+low_delay', // no B-frame reorder wait (H.264)
+  'vd-lavc-o':
+      'flags=+low_delay,threads=1', // no B-frame reorder + no thread pipeline
   // ── Presentation ────────────────────────────────────────────────────────
-  'video-sync': 'desync', // render frame the moment it is decoded
-  'framedrop': 'vo', // drop at display if decoder ever lags
+  //'video-sync': 'desync', // render frame the moment it is decoded
+  //'framedrop': 'vo', // drop at display if decoder ever lags
 };
 
 int _columnsFor(int count) {
@@ -160,7 +167,9 @@ class _CameraCellState extends State<_CameraCell> with KeyboardFocusRingMixin {
 
   Future<void> _startStream(String? url) async {
     if (url == null) return;
-    _player = Player();
+    _player = Player(
+      configuration: const PlayerConfiguration(bufferSize: 524288),
+    );
     _controller = VideoController(_player!);
     final native = _player!.platform as NativePlayer;
     for (final e in _kLowLatencyProps.entries) {
