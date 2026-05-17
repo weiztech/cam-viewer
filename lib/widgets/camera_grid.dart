@@ -15,17 +15,19 @@ const kRtspLowLatencyProps = {
   //
   // NOTE: setProperty replaces demuxer-lavf-o entirely.
   'demuxer-lavf-o': 'rtsp_transport=udp,reorder_queue_size=0,fflags=+nobuffer',
-  'demuxer-lavf-analyzeduration': '0', // probe stream for 0.1 s, not 5 s
+  'demuxer-lavf-analyzeduration': '0.1', // probe for 0.1 s max (default 5 s)
+  'demuxer-lavf-probesize': '32', // probe 32 bytes max — codec comes from SDP
   // ── Cache / read-ahead ──────────────────────────────────────────────────
   // demuxer-max-bytes is intentionally omitted here — it is set (along with
   // demuxer-max-back-bytes) via PlayerConfiguration(bufferSize: 512 KB).
   'cache': 'no', // no ring-buffer, always at live edge
   'demuxer-readahead-secs': '0', // don't pre-read ahead of current PTS
   // ── Decoder ─────────────────────────────────────────────────────────────
-  'vd-lavc-o': 'flags=+low_delay', // no B-frame reorder + no thread pipeline
+  'vd-lavc-o':
+      'flags=+low_delay,threads=1', // no B-frame reorder + no thread pipeline
   // ── Presentation ────────────────────────────────────────────────────────
-  //'video-sync': 'desync', // render frame the moment it is decoded
-  //'framedrop': 'vo', // drop at display if decoder ever lags
+  'video-sync': 'desync', // render frame the moment it is decoded
+  'framedrop': 'vo', // drop at display if decoder ever lags
 };
 
 int _columnsFor(int count) {
