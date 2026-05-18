@@ -7,6 +7,7 @@ class Host {
     this.username = '',
     this.password = '',
     this.activeChannels = const [],
+    this.resolution = 'SD',
   });
 
   /// Unique identifier (random hex).
@@ -22,6 +23,9 @@ class Host {
   /// Channel numbers (1-18) that responded to RTSP DESCRIBE.
   final List<int> activeChannels;
 
+  /// Stream quality: 'SD' (subtype=1, sub-stream) or 'HD' (subtype=0, main-stream).
+  final String resolution;
+
   // ── Serialisation ─────────────────────────────────────────────────────────
 
   Map<String, dynamic> toJson() => {
@@ -30,6 +34,7 @@ class Host {
     'username': username,
     'password': password,
     'activeChannels': activeChannels,
+    'resolution': resolution,
   };
 
   factory Host.fromJson(Map<String, dynamic> json) => Host(
@@ -40,6 +45,7 @@ class Host {
     activeChannels: (json['activeChannels'] as List<dynamic>)
         .map((e) => e as int)
         .toList(),
+    resolution: json['resolution'] as String? ?? 'SD',
   );
 
   // ── Computed ──────────────────────────────────────────────────────────────
@@ -63,7 +69,9 @@ class Host {
 
   // ── URL construction ─────────────────────────────────────────────────────
 
-  /// Build a full-resolution RTSP URL for [channel] (subtype=0).
+  /// Build an RTSP URL for [channel] using the host's [resolution] setting.
+  ///
+  /// SD → subtype=1 (sub-stream), HD → subtype=0 (main-stream).
   ///
   /// Rules:
   /// 1. Strip any leading "rtsp://" the user may have typed.
@@ -71,9 +79,9 @@ class Host {
   ///    full path and use it as-is.
   /// 3. If no path is present, append the default ":554/cam/realmonitor".
   /// 4. Prepend credentials if username is non-empty.
-  /// 5. Append `?channel=<channel>&subtype=0`.
+  /// 5. Append `?channel=<channel>&subtype=<0|1>`.
   String buildStreamUrl(int channel) {
-    const subtype = 0;
+    final subtype = resolution == 'SD' ? 1 : 0;
 
     var input = rawInput.trim();
     // Strip explicit protocol prefix if user typed it
@@ -118,12 +126,14 @@ class Host {
     String? username,
     String? password,
     List<int>? activeChannels,
+    String? resolution,
   }) => Host(
     id: id,
     rawInput: rawInput ?? this.rawInput,
     username: username ?? this.username,
     password: password ?? this.password,
     activeChannels: activeChannels ?? this.activeChannels,
+    resolution: resolution ?? this.resolution,
   );
 
   /// Generate a random 16-byte hex string to use as a unique id.

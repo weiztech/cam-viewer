@@ -5,8 +5,9 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../models/camera_slot.dart';
 import 'keyboard_focus_ring_mixin.dart';
 
-/// Low-latency MPV properties shared by every player (grid + fullscreen).
+/// Low-latency MPV properties for grid cells.
 /// Does NOT mute audio — callers that want silence add `'audio': 'no'`.
+/// Fullscreen should use [kRtspFullscreenProps] instead.
 const kRtspLowLatencyProps = {
   // ── Transport ────────────────────────────────────────────────────────────
   // UDP: no TCP retransmit stalls, no head-of-line blocking.
@@ -14,21 +15,39 @@ const kRtspLowLatencyProps = {
   // packet is useless for live view, so just discard it immediately.
   //
   // NOTE: setProperty replaces demuxer-lavf-o entirely.
-  'demuxer-lavf-o': 'rtsp_transport=udp,reorder_queue_size=0,fflags=+nobuffer',
-  'demuxer-lavf-analyzeduration': '0.1', // probe for 0.1 s max (default 5 s)
+  'demuxer-lavf-o':
+      'rtsp_transport=udp,reorder_queue_size=0,fflags=+nobuffer+flush_packets',
+  'demuxer-lavf-analyzeduration': '0', // probe for 0.1 s max (default 5 s)
   'demuxer-lavf-probesize': '32', // probe 32 bytes max — codec comes from SDP
   // ── Cache / read-ahead ──────────────────────────────────────────────────
-  // demuxer-max-bytes is intentionally omitted here — it is set (along with
-  // demuxer-max-back-bytes) via PlayerConfiguration(bufferSize: 512 KB).
-  'cache': 'no', // no ring-buffer, always at live edge
-  'demuxer-readahead-secs': '0', // don't pre-read ahead of current PTS
+  // demuxer-max-bytes / demuxer-max-back-bytes are set here rather than via
+  // PlayerConfiguration so the values are visible next to all other tuning.
+  //
+  // 32 KB forward buffer: at 1 Mbps ≈ 0.26 s, at 4 Mbps ≈ 0.065 s.
+  // Keeps the player within a fraction of a second of the live edge at
+  // any typical SD/HD DVR bitrate (vs. 512 KB ≈ 1–4 s with the old default).
+  'cache': 'no',
+  'demuxer-max-bytes': '32768', // 32 KB forward buffer
+  'demuxer-max-back-bytes': '0', // no backward-seek data kept at all
   // ── Decoder ─────────────────────────────────────────────────────────────
   'vd-lavc-o':
-      'flags=+low_delay,threads=1', // no B-frame reorder + no thread pipeline
+      'flags=+low_delay', // no B-frame reorder; grid uses OS thread pool
   // ── Presentation ────────────────────────────────────────────────────────
   'video-sync': 'desync', // render frame the moment it is decoded
-  'framedrop': 'vo', // drop at display if decoder ever lags
+  'framedrop': 'decoder+vo', // drop at decoder AND display if pipeline lags
+  'untimed': 'yes',
+  'interpolation': 'no',
+  'hr-seek': 'no',
 };
+
+/// Same as [kRtspLowLatencyProps] but pins the decoder to a single thread.
+/// Use this for fullscreen so one camera can saturate that thread without
+/// competing with the rest of the grid.
+/// Not const — runtime spread is used to override the vd-lavc-o key.
+final kRtspFullscreenProps = Map<String, String>.unmodifiable({
+  ...kRtspLowLatencyProps,
+  'vd-lavc-o': 'flags=+low_delay,threads=1',
+});
 
 int _columnsFor(int count) {
   switch (count) {
@@ -169,7 +188,9 @@ class _CameraCellState extends State<_CameraCell> with KeyboardFocusRingMixin {
   Future<void> _startStream(String? url) async {
     if (url == null) return;
     _player = Player(
-      configuration: const PlayerConfiguration(bufferSize: 524288),
+      // bufferSize sets the initial demuxer-max-bytes before setProperty runs.
+      // Keep it at 32 KB to match the value we apply in _kLowLatencyProps.
+      configuration: const PlayerConfiguration(bufferSize: 32768),
     );
     _controller = VideoController(_player!);
     final native = _player!.platform as NativePlayer;

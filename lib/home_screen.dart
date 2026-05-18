@@ -5,7 +5,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'models/host.dart';
 import 'models/camera_slot.dart';
 import 'services/host_storage.dart';
-import 'widgets/camera_grid.dart' show CameraGrid, kRtspLowLatencyProps;
+import 'widgets/camera_grid.dart' show CameraGrid, kRtspFullscreenProps;
 import 'widgets/app_menu.dart';
 import 'mobile_menu_page.dart';
 
@@ -284,7 +284,9 @@ class _CameraFullscreenPageState extends State<_CameraFullscreenPage> {
   void initState() {
     super.initState();
     _player = Player(
-      configuration: const PlayerConfiguration(bufferSize: 524288),
+      // 128 KB: one stream at a time so we can afford slightly more headroom
+      // than the grid (32 KB), while still staying within ~0.5 s of live.
+      configuration: const PlayerConfiguration(bufferSize: 131072),
     );
     _controller = VideoController(_player);
     _applyPropsAndOpen();
@@ -292,7 +294,7 @@ class _CameraFullscreenPageState extends State<_CameraFullscreenPage> {
 
   Future<void> _applyPropsAndOpen() async {
     final native = _player.platform as NativePlayer;
-    for (final e in kRtspLowLatencyProps.entries) {
+    for (final e in kRtspFullscreenProps.entries) {
       await native.setProperty(e.key, e.value);
     }
     if (mounted) _player.open(Media(widget.slot.fullResUrl));

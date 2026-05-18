@@ -19,6 +19,7 @@ class _AddHostPageState extends State<AddHostPage> {
   late final TextEditingController _passCtrl;
 
   late final Set<int> _selectedChannels;
+  late String _resolution;
   bool _obscurePass = true;
 
   bool get _isEdit => widget.initial != null;
@@ -30,6 +31,7 @@ class _AddHostPageState extends State<AddHostPage> {
     _userCtrl = TextEditingController(text: widget.initial?.username ?? '');
     _passCtrl = TextEditingController(text: widget.initial?.password ?? '');
     _selectedChannels = widget.initial?.activeChannels.toSet() ?? {};
+    _resolution = widget.initial?.resolution ?? 'SD';
   }
 
   @override
@@ -66,6 +68,7 @@ class _AddHostPageState extends State<AddHostPage> {
         username: _userCtrl.text.trim(),
         password: _passCtrl.text,
         activeChannels: _selectedChannels.toList()..sort(),
+        resolution: _resolution,
       ),
     );
   }
@@ -141,6 +144,10 @@ class _AddHostPageState extends State<AddHostPage> {
                 autocorrect: false,
               ),
               const SizedBox(height: 28),
+              _label('RESOLUTION'),
+              const SizedBox(height: 10),
+              _resPicker(),
+              const SizedBox(height: 28),
               _label('CHANNELS'),
               const SizedBox(height: 10),
               _channelPicker(),
@@ -165,6 +172,39 @@ class _AddHostPageState extends State<AddHostPage> {
   }
 
   // ── Widgets ───────────────────────────────────────────────────────────────
+
+  Widget _resPicker() {
+    return Row(
+      children: ['SD', 'HD'].map((res) {
+        final on = _resolution == res;
+        return Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: InkWell(
+            onTap: () => setState(() => _resolution = res),
+            borderRadius: BorderRadius.circular(4),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              decoration: BoxDecoration(
+                color: on ? Colors.blueAccent : const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: on ? Colors.blueAccent : Colors.white24,
+                ),
+              ),
+              child: Text(
+                res,
+                style: TextStyle(
+                  color: on ? Colors.white : Colors.white38,
+                  fontWeight: on ? FontWeight.w700 : FontWeight.normal,
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
 
   Widget _channelPicker() {
     return GridView.count(
